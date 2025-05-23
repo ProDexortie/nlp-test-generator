@@ -87,35 +87,76 @@ main {
 
 /* Кнопки */
 .btn-primary {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-    color: var(--dark-color);
+    background-color: var(--accent-color); /* Используем более темный цвет #a67c52 */
+    border-color: var(--accent-color);
+    color: white; /* Белый текст для лучшего контраста */
+    font-weight: 500;
 }
 
 .btn-primary:hover {
+    background-color: var(--dark-color); /* Еще темнее при hover #4d3c30 */
+    border-color: var(--dark-color);
+    color: white;
+}
+
+.btn-outline-primary {
+    border-color: var(--accent-color); /* Более темная граница #a67c52 */
+    color: var(--accent-color); /* Более темный текст */
+    background-color: transparent;
+    font-weight: 500;
+}
+
+.btn-outline-primary:hover {
     background-color: var(--accent-color);
     border-color: var(--accent-color);
     color: white;
 }
 
-.btn-outline-primary {
-    border-color: var(--primary-color);
-    color: var(--primary-color);
+/* Специальные стили для кнопок в hero-секции */
+.hero-section .btn-primary {
+    background-color: var(--dark-color);
+    border-color: var(--dark-color);
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-width: 2px;
 }
 
-.btn-outline-primary:hover {
-    background-color: var(--primary-color);
+.hero-section .btn-primary:hover {
+    background-color: #3a2a20; /* Еще темнее при hover */
+    border-color: #3a2a20;
     color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.hero-section .btn-outline-primary {
+    border-color: var(--dark-color);
+    color: var(--dark-color);
+    background-color: rgba(255, 255, 255, 0.95); /* Полупрозрачный белый фон */
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-width: 2px;
+}
+
+.hero-section .btn-outline-primary:hover {
+    background-color: var(--dark-color);
+    border-color: var(--dark-color);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .btn-success {
     background-color: var(--success-color);
     border-color: var(--success-color);
+    color: white; /* Изменяем на белый для лучшего контраста */
 }
 
 .btn-danger {
     background-color: var(--danger-color);
     border-color: var(--danger-color);
+    color: white; /* Изменяем на белый для лучшего контраста */
 }
 
 .btn-warning {

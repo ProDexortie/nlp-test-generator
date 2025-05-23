@@ -554,6 +554,197 @@ def api_generate_preview():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# API маршруты для администратора
+@app.route('/api/admin/tests', methods=['GET'])
+@login_required
+def api_admin_get_tests():
+    """API для получения списка всех тестов"""
+    if not current_user.is_admin():
+        return jsonify({"error": "Доступ запрещен"}), 403
+    
+    try:
+        # Получаем все тесты
+        tests_cursor = db.tests.find().sort("created_at", -1)
+        tests = []
+        
+        # Получаем информацию о создателях
+        user_ids = []
+        for test_doc in tests_cursor:
+            if test_doc.get('creator_id'):
+                user_ids.append(test_doc['creator_id'])
+        
+        # Получаем данные пользователей-создателей
+        users_cursor = db.users.find({"_id": {"$in": user_ids}})
+        users_dict = {str(user['_id']): user for user in users_cursor}
+        
+        # Снова получаем тесты (курсор уже исчерпан)
+        tests_cursor = db.tests.find().sort("created_at", -1)
+        
+        for test_doc in tests_cursor:
+            creator_id = str(test_doc.get('creator_id', ''))
+            creator = users_dict.get(creator_id, {})
+            
+            test_data = {
+                '_id': str(test_doc['_id']),
+                'title': test_doc.get('title', ''),
+                'category': test_doc.get('category', ''),
+                'creator_name': creator.get('username', 'Неизвестно'),
+                'question_count': len(test_doc.get('questions', [])),
+                'is_public': test_doc.get('is_public', False),
+                'created_at': test_doc.get('created_at', datetime.datetime.utcnow()).isoformat()
+            }
+            tests.append(test_data)
+        
+        return jsonify({"tests": tests})
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/tests/<test_id>', methods=['DELETE'])
+@login_required
+def api_admin_delete_test(test_id):
+    """API для удаления теста"""
+    if not current_user.is_admin():
+        return jsonify({"error": "Доступ запрещен"}), 403
+    
+    try:
+        # Проверяем существование теста
+        test_doc = db.tests.find_one({"_id": ObjectId(test_id)})
+        if not test_doc:
+            return jsonify({"error": "Тест не найден"}), 404
+        
+        # Удаляем тест и связанные результаты
+        db.tests.delete_one({"_id": ObjectId(test_id)})
+        db.results.delete_many({"test_id": ObjectId(test_id)})
+        
+        return jsonify({"message": "Тест успешно удален"})
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/users', methods=['POST'])
+@login_required
+def api_admin_create_user():
+    """API для создания пользователя"""
+    if not current_user.is_admin():
+        return jsonify({"error": "Доступ запрещен"}), 403
+    
+    try:
+        data = request.get_json()
+        
+        # Валидация данных
+        required_fields = ['username', 'email', 'password', 'role']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({"error": f"Поле {field} обязательно"}), 400
+        
+        # Проверка на существование пользователя с таким email
+        existing_user = db.users.find_one({"email": data['email']})
+        if existing_user:
+            return jsonify({"error": "Пользователь с таким email уже существует"}), 400
+        
+        # Создание нового пользователя
+        user = User(
+            username=data['username'],
+            email=data['email'],
+            password=data['password'],  # В реальном проекте нужно хешировать
+            role=data['role']
+        )
+        
+        user_id = db.users.insert_one(user.to_db_document()).inserted_id
+        
+        return jsonify({
+            "message": "Пользователь успешно создан",
+            "user_id": str(user_id)
+        })
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/users/<user_id>', methods=['PUT'])
+@login_required
+def api_admin_update_user(user_id):
+    """API для обновления пользователя"""
+    if not current_user.is_admin():
+        return jsonify({"error": "Доступ запрещен"}), 403
+    
+    try:
+        data = request.get_json()
+        
+        # Проверяем существование пользователя
+        user_doc = db.users.find_one({"_id": ObjectId(user_id)})
+        if not user_doc:
+            return jsonify({"error": "Пользователь не найден"}), 404
+        
+        # Подготавливаем данные для обновления
+        update_data = {}
+        
+        if 'username' in data:
+            update_data['username'] = data['username']
+        
+        if 'email' in data:
+            # Проверяем, не занят ли email другим пользователем
+            existing_user = db.users.find_one({
+                "email": data['email'],
+                "_id": {"$ne": ObjectId(user_id)}
+            })
+            if existing_user:
+                return jsonify({"error": "Пользователь с таким email уже существует"}), 400
+            update_data['email'] = data['email']
+        
+        if 'role' in data:
+            update_data['role'] = data['role']
+        
+        if 'password' in data and data['password']:
+            update_data['password'] = data['password']  # В реальном проекте нужно хешировать
+        
+        if update_data:
+            db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$set": update_data}
+            )
+        
+        return jsonify({"message": "Пользователь успешно обновлен"})
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/users/<user_id>', methods=['DELETE'])
+@login_required
+def api_admin_delete_user(user_id):
+    """API для удаления пользователя"""
+    if not current_user.is_admin():
+        return jsonify({"error": "Доступ запрещен"}), 403
+    
+    try:
+        # Проверяем существование пользователя
+        user_doc = db.users.find_one({"_id": ObjectId(user_id)})
+        if not user_doc:
+            return jsonify({"error": "Пользователь не найден"}), 404
+        
+        # Запрещаем удаление самого себя
+        if str(user_doc['_id']) == current_user.get_id():
+            return jsonify({"error": "Нельзя удалить самого себя"}), 400
+        
+        # Удаляем пользователя и связанные данные
+        db.users.delete_one({"_id": ObjectId(user_id)})
+        
+        # Удаляем тесты, созданные пользователем
+        user_tests = db.tests.find({"creator_id": ObjectId(user_id)})
+        test_ids = [test['_id'] for test in user_tests]
+        
+        if test_ids:
+            db.tests.delete_many({"creator_id": ObjectId(user_id)})
+            db.results.delete_many({"test_id": {"$in": test_ids}})
+        
+        # Удаляем результаты пользователя
+        db.results.delete_many({"user_id": ObjectId(user_id)})
+        
+        return jsonify({"message": "Пользователь успешно удален"})
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # Запуск приложения
 if __name__ == '__main__':
     app.run(debug=True)

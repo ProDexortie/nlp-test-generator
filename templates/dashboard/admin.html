@@ -59,21 +59,29 @@
                                     <span class="badge bg-secondary">Студент</span>
                                 {% endif %}
                             </td>
-                            <td>{{ user.created_at.strftime('%d.%m.%Y') }}</td>
+                            <td>{{ user.created_at.strftime('%d.%m.%Y') if user.created_at else 'Н/Д' }}</td>
                             <td>
                                 <div class="btn-group">
                                     <button class="btn btn-sm btn-outline-primary edit-user-btn" 
                                             data-user-id="{{ user._id }}"
+                                            data-username="{{ user.username }}"
+                                            data-email="{{ user.email }}"
+                                            data-role="{{ user.role }}"
                                             data-bs-toggle="modal"
-                                            data-bs-target="#editUserModal">
+                                            data-bs-target="#editUserModal"
+                                            title="Редактировать">
                                         <i class="fas fa-edit"></i>
                                     </button>
+                                    {% if user._id != current_user.get_id() %}
                                     <button class="btn btn-sm btn-outline-danger delete-user-btn"
                                             data-user-id="{{ user._id }}"
+                                            data-username="{{ user.username }}"
                                             data-bs-toggle="modal"
-                                            data-bs-target="#deleteUserModal">
+                                            data-bs-target="#deleteUserModal"
+                                            title="Удалить">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -111,24 +119,29 @@
                         <option value="">Все создатели</option>
                         {% for user in users %}
                             {% if user.role == 'teacher' or user.role == 'admin' %}
-                                <option value="{{ user._id }}">{{ user.username }}</option>
+                                <option value="{{ user.username }}">{{ user.username }}</option>
                             {% endif %}
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-4 mb-2">
                     <div class="input-group">
-                        <input type="text" class="form-control" id="search-tests" placeholder="Поиск...">
-                        <button class="btn btn-primary" type="button">
+                        <input type="text" class="form-control" id="search-tests" placeholder="Поиск по названию...">
+                        <button class="btn btn-primary" type="button" onclick="filterTests()">
                             <i class="fas fa-search"></i>
                         </button>
                     </div>
                 </div>
             </div>
             
-            <!-- Таблица тестов будет загружена через AJAX -->
+            <!-- Таблица тестов -->
             <div id="tests-table-container" class="table-responsive">
-                <p class="text-center py-3">Загрузка тестов...</p>
+                <div class="text-center py-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-2">Загрузка тестов...</p>
+                </div>
             </div>
         </div>
     </div>
@@ -239,8 +252,8 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Вы уверены, что хотите удалить этого пользователя? Это действие нельзя отменить.</p>
-                <p><strong>Внимание:</strong> При удалении пользователя все его тесты и результаты также будут удалены.</p>
+                <p>Вы уверены, что хотите удалить пользователя <strong id="delete-user-name"></strong>?</p>
+                <p class="text-danger"><strong>Внимание:</strong> При удалении пользователя все его тесты и результаты также будут удалены.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
@@ -252,10 +265,47 @@
 
 {% block extra_js %}
 <script>
-    // AJAX для загрузки таблицы тестов
-    function loadTests(category = '', creator = '', search = '') {
-        // Этот код будет заменен на реальный AJAX запрос
-        document.getElementById('tests-table-container').innerHTML = `
+    let allTests = [];
+    let currentUserId = null;
+
+    // Загрузка тестов при инициализации страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        loadTests();
+        initializeUserManagement();
+    });
+
+    // Функция для загрузки тестов
+    async function loadTests() {
+        try {
+            const response = await fetch('/api/admin/tests');
+            if (response.ok) {
+                const data = await response.json();
+                allTests = data.tests;
+                displayTests(allTests);
+            } else {
+                console.error('Ошибка загрузки тестов:', response.statusText);
+                showTestsError('Ошибка загрузки тестов');
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showTestsError('Ошибка подключения к серверу');
+        }
+    }
+
+    // Функция для отображения тестов
+    function displayTests(tests) {
+        const container = document.getElementById('tests-table-container');
+        
+        if (tests.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-info-circle me-2"></i> Тестов не найдено
+                </div>
+            `;
+            return;
+        }
+
+        let html = `
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
@@ -264,70 +314,253 @@
                         <th>Создатель</th>
                         <th>Вопросов</th>
                         <th>Публичный</th>
+                        <th>Создан</th>
                         <th>Действия</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>Основы JavaScript</td>
-                        <td>Информатика</td>
-                        <td>Иванов И.И.</td>
-                        <td>15</td>
-                        <td><span class="badge bg-success">Да</span></td>
-                        <td>
-                            <div class="btn-group">
-                                <a href="#" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
-                                <a href="#" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i></a>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>История России</td>
-                        <td>История</td>
-                        <td>Петров П.П.</td>
-                        <td>20</td>
-                        <td><span class="badge bg-secondary">Нет</span></td>
-                        <td>
-                            <div class="btn-group">
-                                <a href="#" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
-                                <a href="#" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i></a>
-                            </div>
-                        </td>
-                    </tr>
+        `;
+
+        tests.forEach(test => {
+            html += `
+                <tr>
+                    <td>${test.title}</td>
+                    <td>${test.category || 'Общая'}</td>
+                    <td>${test.creator_name || 'Неизвестно'}</td>
+                    <td>${test.question_count}</td>
+                    <td>
+                        ${test.is_public ? 
+                            '<span class="badge bg-success">Да</span>' : 
+                            '<span class="badge bg-secondary">Нет</span>'}
+                    </td>
+                    <td>${new Date(test.created_at).toLocaleDateString('ru-RU')}</td>
+                    <td>
+                        <div class="btn-group">
+                            <a href="/test/${test._id}" class="btn btn-sm btn-outline-primary" title="Просмотр">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger delete-test-btn" 
+                                    data-test-id="${test._id}" 
+                                    data-test-title="${test.title}"
+                                    title="Удалить">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `
                 </tbody>
             </table>
         `;
+
+        container.innerHTML = html;
+        
+        // Добавляем обработчики для кнопок удаления тестов
+        document.querySelectorAll('.delete-test-btn').forEach(button => {
+            button.addEventListener('click', handleDeleteTest);
+        });
     }
-    
-    // Загрузка тестов при инициализации страницы
-    document.addEventListener('DOMContentLoaded', function() {
-        loadTests();
-        
-        // Обработчики для фильтров
-        document.getElementById('category-filter').addEventListener('change', function() {
-            loadTests(
-                this.value,
-                document.getElementById('creator-filter').value,
-                document.getElementById('search-tests').value
-            );
+
+    // Функция для отображения ошибки загрузки тестов
+    function showTestsError(message) {
+        const container = document.getElementById('tests-table-container');
+        container.innerHTML = `
+            <div class="alert alert-danger text-center">
+                <i class="fas fa-exclamation-triangle me-2"></i> ${message}
+                <br><button class="btn btn-sm btn-outline-danger mt-2" onclick="loadTests()">
+                    <i class="fas fa-redo me-1"></i> Повторить попытку
+                </button>
+            </div>
+        `;
+    }
+
+    // Функция фильтрации тестов
+    function filterTests() {
+        const categoryFilter = document.getElementById('category-filter').value.toLowerCase();
+        const creatorFilter = document.getElementById('creator-filter').value.toLowerCase();
+        const searchFilter = document.getElementById('search-tests').value.toLowerCase();
+
+        const filteredTests = allTests.filter(test => {
+            const matchesCategory = !categoryFilter || (test.category || '').toLowerCase().includes(categoryFilter);
+            const matchesCreator = !creatorFilter || (test.creator_name || '').toLowerCase().includes(creatorFilter);
+            const matchesSearch = !searchFilter || test.title.toLowerCase().includes(searchFilter);
+            
+            return matchesCategory && matchesCreator && matchesSearch;
         });
+
+        displayTests(filteredTests);
+    }
+
+    // Обработчики для фильтров
+    document.getElementById('category-filter').addEventListener('change', filterTests);
+    document.getElementById('creator-filter').addEventListener('change', filterTests);
+    document.getElementById('search-tests').addEventListener('input', filterTests);
+
+    // Функция для обработки удаления теста
+    async function handleDeleteTest(event) {
+        const testId = event.currentTarget.getAttribute('data-test-id');
+        const testTitle = event.currentTarget.getAttribute('data-test-title');
         
-        document.getElementById('creator-filter').addEventListener('change', function() {
-            loadTests(
-                document.getElementById('category-filter').value,
-                this.value,
-                document.getElementById('search-tests').value
-            );
+        if (confirm(`Вы уверены, что хотите удалить тест "${testTitle}"?`)) {
+            try {
+                const response = await fetch(`/api/admin/tests/${testId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    allTests = allTests.filter(test => test._id !== testId);
+                    filterTests(); // Обновляем отображение
+                    alert('Тест успешно удален');
+                } else {
+                    alert('Ошибка при удалении теста');
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Ошибка подключения к серверу');
+            }
+        }
+    }
+
+    // Инициализация управления пользователями
+    function initializeUserManagement() {
+        // Обработчики для кнопок редактирования пользователей
+        document.querySelectorAll('.edit-user-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const userId = this.getAttribute('data-user-id');
+                const username = this.getAttribute('data-username');
+                const email = this.getAttribute('data-email');
+                const role = this.getAttribute('data-role');
+                
+                document.getElementById('edit-user-id').value = userId;
+                document.getElementById('edit-username').value = username;
+                document.getElementById('edit-email').value = email;
+                document.getElementById('edit-role').value = role;
+                
+                currentUserId = userId;
+            });
         });
+
+        // Обработчики для кнопок удаления пользователей
+        document.querySelectorAll('.delete-user-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const userId = this.getAttribute('data-user-id');
+                const username = this.getAttribute('data-username');
+                
+                document.getElementById('delete-user-name').textContent = username;
+                currentUserId = userId;
+            });
+        });
+
+        // Обработчик для сохранения нового пользователя
+        document.getElementById('save-new-user-btn').addEventListener('click', handleAddUser);
         
-        document.getElementById('search-tests').addEventListener('input', function() {
-            loadTests(
-                document.getElementById('category-filter').value,
-                document.getElementById('creator-filter').value,
-                this.value
-            );
-        });
-    });
+        // Обработчик для сохранения изменений пользователя
+        document.getElementById('save-edit-user-btn').addEventListener('click', handleEditUser);
+        
+        // Обработчик для подтверждения удаления пользователя
+        document.getElementById('confirm-delete-user-btn').addEventListener('click', handleDeleteUser);
+    }
+
+    // Функция для добавления пользователя
+    async function handleAddUser() {
+        const form = document.getElementById('add-user-form');
+        if (!form.checkValidity()) {
+            form.classList.add('was-validated');
+            return;
+        }
+
+        const formData = new FormData(form);
+        const userData = Object.fromEntries(formData);
+
+        try {
+            const response = await fetch('/api/admin/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(userData)
+            });
+
+            if (response.ok) {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addUserModal'));
+                modal.hide();
+                form.reset();
+                form.classList.remove('was-validated');
+                location.reload(); // Перезагружаем страницу для обновления списка
+            } else {
+                const error = await response.json();
+                alert('Ошибка: ' + (error.message || 'Не удалось добавить пользователя'));
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Ошибка подключения к серверу');
+        }
+    }
+
+    // Функция для редактирования пользователя
+    async function handleEditUser() {
+        const form = document.getElementById('edit-user-form');
+        if (!form.checkValidity()) {
+            form.classList.add('was-validated');
+            return;
+        }
+
+        const formData = new FormData(form);
+        const userData = Object.fromEntries(formData);
+        
+        // Удаляем пустой пароль из данных
+        if (!userData.password) {
+            delete userData.password;
+        }
+
+        try {
+            const response = await fetch(`/api/admin/users/${currentUserId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(userData)
+            });
+
+            if (response.ok) {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editUserModal'));
+                modal.hide();
+                form.reset();
+                form.classList.remove('was-validated');
+                location.reload(); // Перезагружаем страницу для обновления списка
+            } else {
+                const error = await response.json();
+                alert('Ошибка: ' + (error.message || 'Не удалось обновить пользователя'));
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Ошибка подключения к серверу');
+        }
+    }
+
+    // Функция для удаления пользователя
+    async function handleDeleteUser() {
+        try {
+            const response = await fetch(`/api/admin/users/${currentUserId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteUserModal'));
+                modal.hide();
+                location.reload(); // Перезагружаем страницу для обновления списка
+            } else {
+                const error = await response.json();
+                alert('Ошибка: ' + (error.message || 'Не удалось удалить пользователя'));
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Ошибка подключения к серверу');
+        }
+    }
 </script>
 {% endblock %}
 {% endblock %}
