@@ -1,0 +1,33 @@
+# Виртуальное окружение
+venv/
+env/
+ENV/
+
+# Переменные окружения
+.env
+
+# Кэш Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Файлы IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Логи
+*.log
+
+# Загруженные файлы
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+
+# Временные файлы
+*.tmp
+*.temp

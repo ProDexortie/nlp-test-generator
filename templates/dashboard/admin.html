@@ -1,0 +1,333 @@
+{% extends 'base.html' %}
+
+{% block title %}Панель администратора - Система автогенерации тестов{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Панель администратора</h2>
+    
+    <!-- Общая статистика системы -->
+    <div class="dashboard-stats mb-4">
+        <div class="stat-card">
+            <i class="fas fa-users mb-3" style="font-size: 2rem; color: var(--accent-color);"></i>
+            <h3>{{ user_count }}</h3>
+            <p>Пользователей</p>
+        </div>
+        <div class="stat-card">
+            <i class="fas fa-file-alt mb-3" style="font-size: 2rem; color: var(--accent-color);"></i>
+            <h3>{{ test_count }}</h3>
+            <p>Тестов</p>
+        </div>
+        <div class="stat-card">
+            <i class="fas fa-tasks mb-3" style="font-size: 2rem; color: var(--accent-color);"></i>
+            <h3>{{ result_count }}</h3>
+            <p>Выполнений</p>
+        </div>
+    </div>
+    
+    <!-- Управление пользователями -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Управление пользователями</h4>
+            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                <i class="fas fa-plus-circle me-1"></i> Добавить пользователя
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Имя пользователя</th>
+                            <th>Email</th>
+                            <th>Роль</th>
+                            <th>Дата регистрации</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                {% if user.role == 'admin' %}
+                                    <span class="badge bg-danger">Администратор</span>
+                                {% elif user.role == 'teacher' %}
+                                    <span class="badge bg-primary">Преподаватель</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Студент</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.created_at.strftime('%d.%m.%Y') }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-primary edit-user-btn" 
+                                            data-user-id="{{ user._id }}"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editUserModal">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger delete-user-btn"
+                                            data-user-id="{{ user._id }}"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#deleteUserModal">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Управление тестами -->
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">Все тесты системы</h4>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i> Здесь вы можете управлять всеми тестами в системе. Используйте фильтры для поиска конкретных тестов.
+            </div>
+            
+            <!-- Фильтры -->
+            <div class="row mb-3">
+                <div class="col-md-4 mb-2">
+                    <select class="form-select" id="category-filter">
+                        <option value="">Все категории</option>
+                        <option value="Математика">Математика</option>
+                        <option value="Информатика">Информатика</option>
+                        <option value="Физика">Физика</option>
+                        <option value="Литература">Литература</option>
+                        <option value="История">История</option>
+                    </select>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <select class="form-select" id="creator-filter">
+                        <option value="">Все создатели</option>
+                        {% for user in users %}
+                            {% if user.role == 'teacher' or user.role == 'admin' %}
+                                <option value="{{ user._id }}">{{ user.username }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="search-tests" placeholder="Поиск...">
+                        <button class="btn btn-primary" type="button">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Таблица тестов будет загружена через AJAX -->
+            <div id="tests-table-container" class="table-responsive">
+                <p class="text-center py-3">Загрузка тестов...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для добавления пользователя -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addUserModalLabel">Добавить пользователя</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-user-form" class="needs-validation" novalidate>
+                    <div class="mb-3">
+                        <label for="new-username" class="form-label">Имя пользователя</label>
+                        <input type="text" class="form-control" id="new-username" name="username" required>
+                        <div class="invalid-feedback">
+                            Пожалуйста, введите имя пользователя.
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="new-email" name="email" required>
+                        <div class="invalid-feedback">
+                            Пожалуйста, введите корректный email.
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-role" class="form-label">Роль</label>
+                        <select class="form-select" id="new-role" name="role" required>
+                            <option value="student">Студент</option>
+                            <option value="teacher">Преподаватель</option>
+                            <option value="admin">Администратор</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-password" class="form-label">Пароль</label>
+                        <input type="password" class="form-control" id="new-password" name="password" required>
+                        <div class="invalid-feedback">
+                            Пожалуйста, введите пароль.
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="save-new-user-btn">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для редактирования пользователя -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editUserModalLabel">Редактировать пользователя</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-user-form" class="needs-validation" novalidate>
+                    <input type="hidden" id="edit-user-id" name="user_id">
+                    <div class="mb-3">
+                        <label for="edit-username" class="form-label">Имя пользователя</label>
+                        <input type="text" class="form-control" id="edit-username" name="username" required>
+                        <div class="invalid-feedback">
+                            Пожалуйста, введите имя пользователя.
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="edit-email" name="email" required>
+                        <div class="invalid-feedback">
+                            Пожалуйста, введите корректный email.
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-role" class="form-label">Роль</label>
+                        <select class="form-select" id="edit-role" name="role" required>
+                            <option value="student">Студент</option>
+                            <option value="teacher">Преподаватель</option>
+                            <option value="admin">Администратор</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-password" class="form-label">Новый пароль (оставьте пустым, чтобы не менять)</label>
+                        <input type="password" class="form-control" id="edit-password" name="password">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="save-edit-user-btn">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для удаления пользователя -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteUserModalLabel">Удалить пользователя</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите удалить этого пользователя? Это действие нельзя отменить.</p>
+                <p><strong>Внимание:</strong> При удалении пользователя все его тесты и результаты также будут удалены.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-user-btn">Удалить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    // AJAX для загрузки таблицы тестов
+    function loadTests(category = '', creator = '', search = '') {
+        // Этот код будет заменен на реальный AJAX запрос
+        document.getElementById('tests-table-container').innerHTML = `
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Название</th>
+                        <th>Категория</th>
+                        <th>Создатель</th>
+                        <th>Вопросов</th>
+                        <th>Публичный</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Основы JavaScript</td>
+                        <td>Информатика</td>
+                        <td>Иванов И.И.</td>
+                        <td>15</td>
+                        <td><span class="badge bg-success">Да</span></td>
+                        <td>
+                            <div class="btn-group">
+                                <a href="#" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
+                                <a href="#" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>История России</td>
+                        <td>История</td>
+                        <td>Петров П.П.</td>
+                        <td>20</td>
+                        <td><span class="badge bg-secondary">Нет</span></td>
+                        <td>
+                            <div class="btn-group">
+                                <a href="#" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
+                                <a href="#" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+    }
+    
+    // Загрузка тестов при инициализации страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        loadTests();
+        
+        // Обработчики для фильтров
+        document.getElementById('category-filter').addEventListener('change', function() {
+            loadTests(
+                this.value,
+                document.getElementById('creator-filter').value,
+                document.getElementById('search-tests').value
+            );
+        });
+        
+        document.getElementById('creator-filter').addEventListener('change', function() {
+            loadTests(
+                document.getElementById('category-filter').value,
+                this.value,
+                document.getElementById('search-tests').value
+            );
+        });
+        
+        document.getElementById('search-tests').addEventListener('input', function() {
+            loadTests(
+                document.getElementById('category-filter').value,
+                document.getElementById('creator-filter').value,
+                this.value
+            );
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная - Система автогенерации тестов{% endblock %}
+
+{% block content %}
+<div class="hero-section">
+    <div class="container">
+        <h1>Автоматическая генерация тестов на основе текста</h1>
+        <p>Наша система использует технологии обработки естественного языка (NLP) для создания разнообразных тестов по любым материалам</p>
+        {% if not current_user.is_authenticated %}
+            <div class="mt-4">
+                <a href="{{ url_for('login') }}" class="btn btn-primary me-2">Войти</a>
+                <a href="{{ url_for('register') }}" class="btn btn-outline-primary">Зарегистрироваться</a>
+            </div>
+        {% else %}
+            <div class="mt-4">
+                <a href="{{ url_for('dashboard') }}" class="btn btn-primary me-2">Личный кабинет</a>
+                {% if current_user.is_teacher() or current_user.is_admin() %}
+                    <a href="{{ url_for('create_test') }}" class="btn btn-outline-primary">Создать тест</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="container">
+    <div class="row text-center mb-5">
+        <div class="col-12">
+            <h2 class="mb-4">Как это работает</h2>
+        </div>
+    </div>
+    
+    <div class="row mb-5">
+        <div class="col-md-4 mb-4">
+            <div class="feature-card card h-100">
+                <i class="fas fa-file-alt"></i>
+                <h3>Загрузите текст</h3>
+                <p>Просто загрузите любой текстовый материал или введите текст для анализа</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="feature-card card h-100">
+                <i class="fas fa-robot"></i>
+                <h3>Система анализирует</h3>
+                <p>Наша NLP система анализирует содержание и формирует базу знаний</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="feature-card card h-100">
+                <i class="fas fa-tasks"></i>
+                <h3>Получите готовый тест</h3>
+                <p>Система автоматически генерирует разнообразные вопросы для проверки знаний</p>
+            </div>
+        </div>
+    </div>
+    
+    {% if public_tests %}
+        <div class="row mb-5">
+            <div class="col-12">
+                <h2 class="mb-4">Популярные тесты</h2>
+                <div class="row">
+                    {% for test in public_tests %}
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h5 class="mb-0">{{ test.title }}</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>{{ test.description }}</p>
+                                    <p><strong>Категория:</strong> {{ test.category or 'Общая' }}</p>
+                                    <p><strong>Вопросов:</strong> {{ test.questions|length }}</p>
+                                    <p><strong>Длительность:</strong> {{ test.duration }} мин.</p>
+                                </div>
+                                <div class="card-footer">
+                                    <a href="{{ url_for('view_test', test_id=test._id) }}" class="btn btn-primary">Подробнее</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Преимущества системы</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item">✅ Экономия времени преподавателей на создание тестов</li>
+                                <li class="list-group-item">✅ Разнообразные типы вопросов: выбор, правда/ложь, заполнение</li>
+                                <li class="list-group-item">✅ Автоматическая проверка и оценка результатов</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item">✅ Адаптация под разные учебные материалы</li>
+                                <li class="list-group-item">✅ Сохранение истории результатов</li>
+                                <li class="list-group-item">✅ Простой и удобный интерфейс</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

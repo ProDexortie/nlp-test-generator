@@ -1,0 +1,14 @@
+flask==2.2.5
+werkzeug==2.2.3
+pymongo==4.5.0
+flask-login==0.6.2
+flask-wtf==1.1.1
+spacy==3.6.1
+transformers==4.34.0
+torch==2.0.1
+sentencepiece==0.1.99
+pdfkit==1.0.0
+python-dotenv==1.0.0
+numpy==1.24.3
+nltk==3.8.1
+tqdm==4.66.1

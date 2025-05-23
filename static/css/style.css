@@ -1,0 +1,435 @@
+/* Цветовая палитра в бежевых тонах */
+:root {
+    --primary-color: #d2b48c; /* Основной цвет (светло-коричневый) */
+    --secondary-color: #e6d7c3; /* Вторичный цвет (светло-бежевый) */
+    --accent-color: #a67c52; /* Акцентный цвет (тёмно-бежевый) */
+    --light-color: #f5f0e6; /* Светлый цвет (почти белый с бежевым оттенком) */
+    --dark-color: #4d3c30; /* Тёмный цвет (тёмно-коричневый) */
+    --success-color: #8aad89; /* Успех (приглушённый зелёный) */
+    --danger-color: #c17a7a; /* Опасность (приглушённый красный) */
+    --warning-color: #d8b778; /* Предупреждение (янтарный) */
+    --info-color: #7aa3c1; /* Информация (приглушённый синий) */
+}
+
+/* Базовые стили */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--light-color);
+    color: var(--dark-color);
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Навигационная панель */
+.navbar {
+    background-color: var(--primary-color);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+    font-weight: bold;
+    color: var(--dark-color) !important;
+}
+
+.navbar-light .navbar-nav .nav-link {
+    color: var(--dark-color);
+}
+
+.navbar-light .navbar-nav .nav-link:hover {
+    color: var(--accent-color);
+}
+
+.dropdown-menu {
+    background-color: var(--secondary-color);
+    border: none;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-item:hover {
+    background-color: var(--primary-color);
+}
+
+/* Основное содержимое */
+main {
+    flex: 1;
+}
+
+.container {
+    max-width: 1200px;
+}
+
+.card {
+    background-color: #fff;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: var(--secondary-color);
+    border-bottom: none;
+    font-weight: bold;
+    color: var(--dark-color);
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* Кнопки */
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--dark-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+}
+
+.btn-outline-primary {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+    color: var(--dark-color);
+}
+
+.btn-info {
+    background-color: var(--info-color);
+    border-color: var(--info-color);
+    color: white;
+}
+
+/* Формы */
+.form-control {
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    padding: 10px 15px;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(210, 180, 140, 0.25);
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+/* Badges */
+.badge {
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: 4px;
+}
+
+.badge-primary {
+    background-color: var(--primary-color);
+    color: var(--dark-color);
+}
+
+.badge-secondary {
+    background-color: var(--secondary-color);
+    color: var(--dark-color);
+}
+
+.badge-success {
+    background-color: var(--success-color);
+}
+
+.badge-danger {
+    background-color: var(--danger-color);
+}
+
+/* Alerts */
+.alert {
+    border: none;
+    border-radius: 6px;
+}
+
+.alert-success {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.alert-danger {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.alert-warning {
+    background-color: var(--warning-color);
+    color: var(--dark-color);
+}
+
+.alert-info {
+    background-color: var(--info-color);
+    color: white;
+}
+
+/* Таблицы */
+.table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.table th {
+    background-color: var(--secondary-color);
+    color: var(--dark-color);
+    font-weight: 600;
+    border: none;
+}
+
+.table td {
+    border-top: 1px solid #eee;
+    padding: 12px 15px;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(230, 215, 195, 0.1);
+}
+
+/* Главная страница */
+.hero-section {
+    background-color: var(--primary-color);
+    padding: 60px 0;
+    margin-bottom: 40px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.hero-section h1 {
+    color: var(--dark-color);
+    font-size: 2.5rem;
+    margin-bottom: 20px;
+}
+
+.hero-section p {
+    color: var(--dark-color);
+    font-size: 1.2rem;
+    max-width: 700px;
+    margin: 0 auto 30px;
+}
+
+.feature-card {
+    text-align: center;
+    padding: 30px 20px;
+}
+
+.feature-card i {
+    font-size: 3rem;
+    color: var(--accent-color);
+    margin-bottom: 20px;
+}
+
+.feature-card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+    color: var(--dark-color);
+}
+
+/* Личный кабинет */
+.dashboard-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    flex: 1;
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    margin: 0 10px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+}
+
+.stat-card h3 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    color: var(--accent-color);
+}
+
+.stat-card p {
+    color: var(--dark-color);
+    font-weight: 500;
+    margin: 0;
+}
+
+/* Тесты */
+.question-card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+}
+
+.question-number {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    background-color: var(--primary-color);
+    color: var(--dark-color);
+    border-radius: 50%;
+    text-align: center;
+    line-height: 30px;
+    margin-right: 10px;
+    font-weight: bold;
+}
+
+.question-text {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+}
+
+.options-list {
+    list-style-type: none;
+    padding: 0;
+}
+
+.option-item {
+    margin-bottom: 10px;
+}
+
+.option-item label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 10px 15px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+.option-item label:hover {
+    background-color: var(--secondary-color);
+}
+
+.option-item input[type="radio"],
+.option-item input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+/* Результаты тестов */
+.result-summary {
+    background-color: white;
+    border-radius: 8px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+    text-align: center;
+}
+
+.score-circle {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background-color: var(--secondary-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 20px;
+}
+
+.score-text {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--accent-color);
+}
+
+.result-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+}
+
+.result-stat-item {
+    text-align: center;
+}
+
+.result-stat-item h4 {
+    font-size: 1.8rem;
+    margin-bottom: 5px;
+    color: var(--dark-color);
+}
+
+.result-stat-item p {
+    color: #666;
+    margin: 0;
+}
+
+.correct-answer {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+.incorrect-answer {
+    color: var(--danger-color);
+    font-weight: 600;
+}
+
+/* Футер */
+.footer {
+    background-color: var(--primary-color);
+    padding: 15px 0;
+    color: var(--dark-color);
+    margin-top: auto;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .dashboard-stats {
+        flex-direction: column;
+    }
+    
+    .stat-card {
+        margin: 0 0 15px 0;
+    }
+    
+    .hero-section {
+        padding: 40px 0;
+    }
+    
+    .hero-section h1 {
+        font-size: 2rem;
+    }
+    
+    .feature-card {
+        margin-bottom: 30px;
+    }
+}

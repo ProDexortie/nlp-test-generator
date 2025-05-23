@@ -1,0 +1,402 @@
+{% extends 'base.html' %}
+
+{% block title %}Прохождение теста: {{ test.title }} - Система автогенерации тестов{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ test.title }}</h2>
+        <div id="test-timer" class="fs-4 fw-bold" data-duration="{{ test.duration }}">
+            {{ '%02d'|format(test.duration) }}:00
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <form id="test-form" method="POST" action="{{ url_for('submit_test', test_id=test._id) }}">
+                <div class="progress mb-4">
+                    <div id="test-progress" class="progress-bar bg-primary" role="progressbar" style="width: 0%;" 
+                         aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                </div>
+                
+                {% for question in test.questions %}
+                    {% set question_index = loop.index0 %}
+                    <div class="question-card" id="question-{{ question_index }}" 
+                         {% if question_index > 0 %}style="display: none;"{% endif %} 
+                         data-question-index="{{ question_index }}">
+                        <div class="d-flex align-items-start">
+                            <span class="question-number">{{ loop.index }}</span>
+                            <div class="flex-grow-1">
+                                <p class="question-text">{{ question.text }}</p>
+                                
+                                {% if question.question_type == 'multiple_choice' %}
+                                    <span class="badge bg-primary mb-3">Выберите правильный вариант</span>
+                                    <ul class="options-list">
+                                        {% for option in question.options %}
+                                            <li class="option-item">
+                                                <label>
+                                                    <input type="radio" name="answer_{{ question_index }}" value="{{ option }}">
+                                                    {{ option }}
+                                                </label>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% elif question.question_type == 'true_false' %}
+                                    <span class="badge bg-success mb-3">Правда или ложь</span>
+                                    <ul class="options-list">
+                                        <li class="option-item">
+                                            <label>
+                                                <input type="radio" name="answer_{{ question_index }}" value="правда">
+                                                Правда
+                                            </label>
+                                        </li>
+                                        <li class="option-item">
+                                            <label>
+                                                <input type="radio" name="answer_{{ question_index }}" value="ложь">
+                                                Ложь
+                                            </label>
+                                        </li>
+                                    </ul>
+                                {% elif question.question_type == 'fill_blank' %}
+                                    <span class="badge bg-info mb-3">Заполните пропуск</span>
+                                    <div class="input-group mt-3">
+                                        <input type="text" class="form-control" name="answer_{{ question_index }}" placeholder="Введите ответ">
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="d-flex justify-content-between mt-4">
+                                    <button type="button" class="btn btn-outline-secondary prev-question-btn" 
+                                            {% if loop.first %}disabled{% endif %}
+                                            data-question-index="{{ question_index }}">
+                                        <i class="fas fa-arrow-left me-1"></i> Предыдущий
+                                    </button>
+                                    
+                                    {% if loop.last %}
+                                        <button type="button" class="btn btn-success submit-test-btn">
+                                            <i class="fas fa-check-circle me-1"></i> Завершить тест
+                                        </button>
+                                    {% else %}
+                                        <button type="button" class="btn btn-primary next-question-btn" 
+                                                data-question-index="{{ question_index }}">
+                                            Следующий <i class="fas fa-arrow-right ms-1"></i>
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+                
+                <!-- Модальное окно для подтверждения завершения теста -->
+                <div class="modal fade" id="confirmSubmitModal" tabindex="-1" aria-labelledby="confirmSubmitLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="confirmSubmitLabel">Завершение теста</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Вы уверены, что хотите завершить тест?</p>
+                                <div id="unanswered-warning" class="alert alert-warning d-none">
+                                    <i class="fas fa-exclamation-triangle me-2"></i> У вас есть неотвеченные вопросы. 
+                                    Вы не сможете вернуться к ним после завершения теста.
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                <button type="submit" class="btn btn-success">Завершить тест</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4 position-sticky" style="top: 20px;">
+                <div class="card-header">
+                    <h4 class="mb-0">Навигация по вопросам</h4>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap question-navigation">
+                        {% for question in test.questions %}
+                            <button type="button" class="btn btn-outline-secondary m-1 question-nav-btn" 
+                                    data-question-index="{{ loop.index0 }}">
+                                {{ loop.index }}
+                            </button>
+                        {% endfor %}
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-secondary">
+                                <i class="fas fa-question-circle me-1"></i> Не отвечено
+                            </span>
+                        </div>
+                        <div>
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-circle me-1"></i> Отвечено
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-success submit-test-btn">
+                            <i class="fas fa-check-circle me-1"></i> Завершить тест
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Текущее состояние теста
+        const totalQuestions = {{ test.questions|length }};
+        const testId = "{{ test._id }}";
+        let currentQuestionIndex = 0;
+        let answeredQuestions = [];
+        
+        // DOM элементы
+        const questionCards = document.querySelectorAll('.question-card');
+        const progressBar = document.getElementById('test-progress');
+        const navigationButtons = document.querySelectorAll('.question-nav-btn');
+        const submitButtons = document.querySelectorAll('.submit-test-btn');
+        const unansweredWarning = document.getElementById('unanswered-warning');
+        
+        // Инициализация сохраненного прогресса
+        loadProgress();
+        
+        // Обработчик для кнопок "Следующий вопрос"
+        document.querySelectorAll('.next-question-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const currentIndex = parseInt(this.getAttribute('data-question-index'));
+                const nextIndex = currentIndex + 1;
+                
+                if (nextIndex < totalQuestions) {
+                    showQuestion(nextIndex);
+                }
+                
+                // Сохраняем ответ
+                saveCurrentAnswer(currentIndex);
+            });
+        });
+        
+        // Обработчик для кнопок "Предыдущий вопрос"
+        document.querySelectorAll('.prev-question-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const currentIndex = parseInt(this.getAttribute('data-question-index'));
+                const prevIndex = currentIndex - 1;
+                
+                if (prevIndex >= 0) {
+                    showQuestion(prevIndex);
+                }
+                
+                // Сохраняем ответ
+                saveCurrentAnswer(currentIndex);
+            });
+        });
+        
+        // Обработчик для кнопок навигации
+        navigationButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const targetIndex = parseInt(this.getAttribute('data-question-index'));
+                
+                // Сохраняем текущий ответ перед переходом
+                saveCurrentAnswer(currentQuestionIndex);
+                
+                // Переходим к выбранному вопросу
+                showQuestion(targetIndex);
+            });
+        });
+        
+        // Обработчик для изменения ответов (отметка вопросов как отвеченные)
+        document.querySelectorAll('input[type="radio"], input[type="text"]').forEach(input => {
+            input.addEventListener('change', function() {
+                const questionName = this.name;
+                const questionIndex = parseInt(questionName.replace('answer_', ''));
+                
+                // Добавляем вопрос в список отвеченных
+                if (!answeredQuestions.includes(questionIndex)) {
+                    answeredQuestions.push(questionIndex);
+                    updateNavigationButtons();
+                    updateProgress();
+                }
+                
+                // Сохраняем ответ в локальное хранилище
+                saveTestProgress(testId, questionIndex, this.value);
+            });
+        });
+        
+        // Обработчик для кнопок завершения теста
+        submitButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Сохраняем текущий ответ
+                saveCurrentAnswer(currentQuestionIndex);
+                
+                // Проверяем, все ли вопросы отвечены
+                if (answeredQuestions.length < totalQuestions) {
+                    unansweredWarning.classList.remove('d-none');
+                } else {
+                    unansweredWarning.classList.add('d-none');
+                }
+                
+                // Показываем модальное окно
+                const confirmModal = new bootstrap.Modal(document.getElementById('confirmSubmitModal'));
+                confirmModal.show();
+            });
+        });
+        
+        // Функция для отображения вопроса по индексу
+        function showQuestion(index) {
+            // Скрываем все вопросы
+            questionCards.forEach(card => {
+                card.style.display = 'none';
+            });
+            
+            // Показываем выбранный вопрос
+            questionCards[index].style.display = 'block';
+            
+            // Обновляем текущий индекс
+            currentQuestionIndex = index;
+            
+            // Прокручиваем страницу вверх
+            window.scrollTo(0, 0);
+            
+            // Обновляем активную кнопку навигации
+            navigationButtons.forEach(button => {
+                const buttonIndex = parseInt(button.getAttribute('data-question-index'));
+                button.classList.remove('active');
+                
+                if (buttonIndex === index) {
+                    button.classList.add('active');
+                }
+            });
+        }
+        
+        // Функция для сохранения текущего ответа
+        function saveCurrentAnswer(index) {
+            const questionType = getQuestionType(index);
+            let answer = null;
+            
+            if (questionType === 'fill_blank') {
+                const input = document.querySelector(`input[name="answer_${index}"]`);
+                if (input && input.value.trim() !== '') {
+                    answer = input.value.trim();
+                }
+            } else {
+                const selectedOption = document.querySelector(`input[name="answer_${index}"]:checked`);
+                if (selectedOption) {
+                    answer = selectedOption.value;
+                }
+            }
+            
+            if (answer !== null && !answeredQuestions.includes(index)) {
+                answeredQuestions.push(index);
+                updateNavigationButtons();
+                updateProgress();
+            }
+            
+            // Сохраняем в локальное хранилище
+            if (answer !== null) {
+                saveTestProgress(testId, index, answer);
+            }
+        }
+        
+        // Функция для определения типа вопроса
+        function getQuestionType(index) {
+            const questionCard = questionCards[index];
+            if (questionCard.querySelector('input[type="text"]')) {
+                return 'fill_blank';
+            } else {
+                return 'multiple_choice'; // или true_false, обработка одинаковая
+            }
+        }
+        
+        // Функция для обновления кнопок навигации
+        function updateNavigationButtons() {
+            navigationButtons.forEach(button => {
+                const buttonIndex = parseInt(button.getAttribute('data-question-index'));
+                button.classList.remove('btn-outline-secondary', 'btn-outline-success');
+                
+                if (answeredQuestions.includes(buttonIndex)) {
+                    button.classList.add('btn-outline-success');
+                } else {
+                    button.classList.add('btn-outline-secondary');
+                }
+                
+                if (buttonIndex === currentQuestionIndex) {
+                    button.classList.add('active');
+                }
+            });
+        }
+        
+        // Функция для обновления индикатора прогресса
+        function updateProgress() {
+            const progress = Math.round((answeredQuestions.length / totalQuestions) * 100);
+            progressBar.style.width = `${progress}%`;
+            progressBar.setAttribute('aria-valuenow', progress);
+            progressBar.textContent = `${progress}%`;
+        }
+        
+        // Функция для сохранения прогресса в локальное хранилище
+        function saveTestProgress(testId, questionIndex, answer) {
+            const storageKey = `test_${testId}_progress`;
+            let progress = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            
+            progress[questionIndex] = answer;
+            localStorage.setItem(storageKey, JSON.stringify(progress));
+        }
+        
+        // Функция для загрузки сохраненного прогресса
+        function loadProgress() {
+            const storageKey = `test_${testId}_progress`;
+            const savedProgress = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            
+            // Восстанавливаем ответы
+            for (const [index, answer] of Object.entries(savedProgress)) {
+                const questionIndex = parseInt(index);
+                const questionType = getQuestionType(questionIndex);
+                
+                if (questionType === 'fill_blank') {
+                    const input = document.querySelector(`input[name="answer_${questionIndex}"]`);
+                    if (input) {
+                        input.value = answer;
+                    }
+                } else {
+                    const option = document.querySelector(`input[name="answer_${questionIndex}"][value="${answer}"]`);
+                    if (option) {
+                        option.checked = true;
+                    }
+                }
+                
+                // Добавляем в список отвеченных
+                if (!answeredQuestions.includes(questionIndex)) {
+                    answeredQuestions.push(questionIndex);
+                }
+            }
+            
+            // Обновляем UI
+            updateNavigationButtons();
+            updateProgress();
+        }
+        
+        // Обработчик события отправки формы
+        document.getElementById('test-form').addEventListener('submit', function() {
+            // Сохраняем текущий ответ
+            saveCurrentAnswer(currentQuestionIndex);
+            
+            // Очищаем сохраненный прогресс после отправки
+            localStorage.removeItem(`test_${testId}_progress`);
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ test.title }} - Система автогенерации тестов{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ test.title }}</h2>
+        <div>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary me-2">
+                <i class="fas fa-arrow-left"></i> К личному кабинету
+            </a>
+            {% if is_owner %}
+                <a href="{{ url_for('edit_test', test_id=test._id) }}" class="btn btn-primary">
+                    <i class="fas fa-edit"></i> Редактировать тест
+                </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Информация о тесте -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Информация о тесте</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h5>Описание</h5>
+                        <p>{{ test.description or 'Описание отсутствует' }}</p>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <h5>Категория</h5>
+                                <span class="badge bg-primary fs-6">{{ test.category or 'Общая' }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <h5>Количество вопросов</h5>
+                                <span class="badge bg-secondary fs-6">{{ test.questions|length }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <h5>Длительность</h5>
+                                <span class="badge bg-info fs-6">{{ test.duration }} мин.</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Создан</h5>
+                            <p>{{ test.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Последнее обновление</h5>
+                            <p>{{ test.updated_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>Статус</h5>
+                        <p>
+                            {% if test.is_public %}
+                                <span class="badge bg-success">Публичный</span>
+                                <small class="text-muted ms-2">Доступен всем пользователям системы</small>
+                            {% else %}
+                                <span class="badge bg-secondary">Приватный</span>
+                                <small class="text-muted ms-2">Доступен только создателю и администраторам</small>
+                            {% endif %}
+                        </p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>Создатель</h5>
+                        <p>
+                            {% if creator %}
+                                {{ creator.username }}
+                                <small class="text-muted">({{ creator.email }})</small>
+                            {% else %}
+                                Неизвестно
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Предпросмотр вопросов -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Предпросмотр вопросов</h4>
+                    <span class="badge bg-primary">{{ test.questions|length }} вопросов</span>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i> Ниже представлен предварительный просмотр некоторых вопросов. Полный список вопросов будет доступен при прохождении теста.
+                    </div>
+                    
+                    {% for question in test.questions[:3] %}
+                        <div class="question-card">
+                            <div class="d-flex align-items-start">
+                                <span class="question-number">{{ loop.index }}</span>
+                                <div class="flex-grow-1">
+                                    <p class="question-text">{{ question.text }}</p>
+                                    
+                                    {% if question.question_type == 'multiple_choice' %}
+                                        <span class="badge bg-primary mb-2">Выберите правильный вариант</span>
+                                        <ul class="options-list">
+                                            {% for option in question.options %}
+                                                <li class="option-item">
+                                                    <label>
+                                                        <input type="radio" disabled>
+                                                        {{ option }}
+                                                    </label>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% elif question.question_type == 'true_false' %}
+                                        <span class="badge bg-success mb-2">Правда или ложь</span>
+                                        <ul class="options-list">
+                                            <li class="option-item">
+                                                <label>
+                                                    <input type="radio" disabled>
+                                                    Правда
+                                                </label>
+                                            </li>
+                                            <li class="option-item">
+                                                <label>
+                                                    <input type="radio" disabled>
+                                                    Ложь
+                                                </label>
+                                            </li>
+                                        </ul>
+                                    {% elif question.question_type == 'fill_blank' %}
+                                        <span class="badge bg-info mb-2">Заполните пропуск</span>
+                                        <div class="input-group mt-2">
+                                            <input type="text" class="form-control" placeholder="Введите ответ" disabled>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    
+                    {% if test.questions|length > 3 %}
+                        <div class="text-center mt-3">
+                            <p class="text-muted">... и еще {{ test.questions|length - 3 }} вопросов</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Боковая панель с действиями -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Действия</h4>
+                </div>
+                <div class="card-body">
+                    {% if current_user.is_authenticated %}
+                        {% if is_owner %}
+                            <div class="d-grid gap-2 mb-3">
+                                <a href="{{ url_for('edit_test', test_id=test._id) }}" class="btn btn-primary">
+                                    <i class="fas fa-edit me-1"></i> Редактировать тест
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteTestModal">
+                                    <i class="fas fa-trash-alt me-1"></i> Удалить тест
+                                </button>
+                            </div>
+                        {% endif %}
+                        
+                        {% if current_user.is_student() %}
+                            <div class="d-grid gap-2 mb-3">
+                                <a href="{{ url_for('take_test', test_id=test._id) }}" class="btn btn-success">
+                                    <i class="fas fa-play-circle me-1"></i> Начать тест
+                                </a>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-circle me-2"></i> Для прохождения теста необходимо <a href="{{ url_for('login') }}">войти в систему</a>.
+                        </div>
+                    {% endif %}
+                    
+                    <hr>
+                    
+                    <h5>Типы вопросов</h5>
+                    {% set question_types = {'multiple_choice': 0, 'true_false': 0, 'fill_blank': 0} %}
+                    {% for question in test.questions %}
+                        {% if question.question_type in question_types %}
+                            {% set _ = question_types.update({question.question_type: question_types[question.question_type] + 1}) %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Множественный выбор</span>
+                            <span>{{ question_types['multiple_choice'] }}</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-primary" role="progressbar" 
+                                 style="width: {{ (question_types['multiple_choice'] / test.questions|length * 100)|round }}%;" 
+                                 aria-valuenow="{{ question_types['multiple_choice'] }}" aria-valuemin="0" 
+                                 aria-valuemax="{{ test.questions|length }}"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Правда/ложь</span>
+                            <span>{{ question_types['true_false'] }}</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ (question_types['true_false'] / test.questions|length * 100)|round }}%;" 
+                                 aria-valuenow="{{ question_types['true_false'] }}" aria-valuemin="0" 
+                                 aria-valuemax="{{ test.questions|length }}"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Заполнение пропуска</span>
+                            <span>{{ question_types['fill_blank'] }}</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-info" role="progressbar" 
+                                 style="width: {{ (question_types['fill_blank'] / test.questions|length * 100)|round }}%;" 
+                                 aria-valuenow="{{ question_types['fill_blank'] }}" aria-valuemin="0" 
+                                 aria-valuemax="{{ test.questions|length }}"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if is_owner %}
+                <!-- Статистика прохождения (только для создателя) -->
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="mb-0">Статистика прохождения</h4>
+                    </div>
+                    <div class="card-body">
+                        <!-- Эта часть будет заполнена с помощью AJAX запроса -->
+                        <p class="text-center py-3">
+                            <i class="fas fa-chart-bar me-2"></i> Загрузка статистики...
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для подтверждения удаления теста -->
+{% if is_owner %}
+<div class="modal fade" id="deleteTestModal" tabindex="-1" aria-labelledby="deleteTestModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteTestModalLabel">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите удалить тест <strong>{{ test.title }}</strong>?</p>
+                <p class="text-danger">Это действие нельзя будет отменить. Все результаты прохождения этого теста также будут удалены.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form method="POST" action="{{ url_for('delete_test', test_id=test._id) }}">
+                    <button type="submit" class="btn btn-danger">Удалить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if is_owner %}
+{% block extra_js %}
+<script>
+    // AJAX для загрузки статистики
+    document.addEventListener('DOMContentLoaded', function() {
+        // В рамках учебного проекта статистика не реализована, поэтому показываем заглушку
+        const statsContainer = document.querySelector('.card-body p.text-center');
+        if (statsContainer) {
+            setTimeout(function() {
+                statsContainer.innerHTML = `
+                    <div class="text-center">
+                        <p><strong>Прохождений:</strong> 0</p>
+                        <p><strong>Средний балл:</strong> 0%</p>
+                        <p><strong>Среднее время:</strong> 0 мин.</p>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> Когда студенты начнут проходить тест, здесь будет отображаться статистика.
+                        </div>
+                    </div>
+                `;
+            }, 1000);
+        }
+    });
+</script>
+{% endblock %}
+{% endif %}
+{% endblock %}

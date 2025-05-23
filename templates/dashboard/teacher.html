@@ -1,0 +1,294 @@
+{% extends 'base.html' %}
+
+{% block title %}Панель преподавателя - Система автогенерации тестов{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Панель преподавателя</h2>
+    
+    <!-- Статистика -->
+    <div class="dashboard-stats mb-4">
+        <div class="stat-card">
+            <i class="fas fa-file-alt mb-3" style="font-size: 2rem; color: var(--accent-color);"></i>
+            <h3>{{ tests|length }}</h3>
+            <p>Ваших тестов</p>
+        </div>
+        <div class="stat-card">
+            <i class="fas fa-tasks mb-3" style="font-size: 2rem; color: var(--accent-color);"></i>
+            <h3>{{ results|length }}</h3>
+            <p>Прохождений</p>
+        </div>
+        <div class="stat-card">
+            <i class="fas fa-trophy mb-3" style="font-size: 2rem; color: var(--accent-color);"></i>
+            <h3>{{ "%0.1f"|format(results|selectattr("score")|map(attribute="score")|sum / results|length if results|length > 0 else 0) }}</h3>
+            <p>Средний балл</p>
+        </div>
+    </div>
+    
+    <!-- Быстрые действия -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Быстрые действия</h5>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{{ url_for('create_test') }}" class="btn btn-primary">
+                            <i class="fas fa-plus-circle me-1"></i> Создать тест
+                        </a>
+                        <button class="btn btn-outline-primary">
+                            <i class="fas fa-file-export me-1"></i> Экспорт результатов
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Вкладки с тестами и результатами -->
+    <div class="card">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" id="teacher-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="tests-tab" data-bs-toggle="tab" data-bs-target="#tests" type="button" role="tab" aria-controls="tests" aria-selected="true">Мои тесты</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="results-tab" data-bs-toggle="tab" data-bs-target="#results" type="button" role="tab" aria-controls="results" aria-selected="false">Результаты студентов</button>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content" id="teacher-tabs-content">
+                <!-- Вкладка с тестами -->
+                <div class="tab-pane fade show active" id="tests" role="tabpanel" aria-labelledby="tests-tab">
+                    {% if tests %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Название</th>
+                                        <th>Категория</th>
+                                        <th>Вопросов</th>
+                                        <th>Создан</th>
+                                        <th>Публичный</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for test in tests %}
+                                    <tr>
+                                        <td>{{ test.title }}</td>
+                                        <td>{{ test.category or 'Общая' }}</td>
+                                        <td>{{ test.questions|length }}</td>
+                                        <td>{{ test.created_at.strftime('%d.%m.%Y') }}</td>
+                                        <td>
+                                            {% if test.is_public %}
+                                                <span class="badge bg-success">Да</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Нет</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group">
+                                                <a href="{{ url_for('view_test', test_id=test._id) }}" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Просмотр">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="{{ url_for('edit_test', test_id=test._id) }}" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Редактировать">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-outline-danger delete-test-btn" 
+                                                        data-test-id="{{ test._id }}" 
+                                                        data-test-title="{{ test.title }}"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#deleteTestModal"
+                                                        title="Удалить">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> У вас пока нет созданных тестов.
+                            <a href="{{ url_for('create_test') }}" class="alert-link">Создать первый тест</a>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Вкладка с результатами -->
+                <div class="tab-pane fade" id="results" role="tabpanel" aria-labelledby="results-tab">
+                    {% if results %}
+                        <!-- Фильтры для результатов -->
+                        <div class="row mb-3">
+                            <div class="col-md-4 mb-2">
+                                <select class="form-select" id="test-filter">
+                                    <option value="">Все тесты</option>
+                                    {% for test in tests %}
+                                        <option value="{{ test._id }}">{{ test.title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <select class="form-select" id="student-filter">
+                                    <option value="">Все студенты</option>
+                                    {% for student_id, student in students.items() %}
+                                        <option value="{{ student_id }}">{{ student.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="search-results" placeholder="Поиск...">
+                                    <button class="btn btn-primary" type="button">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Студент</th>
+                                        <th>Тест</th>
+                                        <th>Баллы</th>
+                                        <th>Процент</th>
+                                        <th>Дата</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for result in results %}
+                                    <tr>
+                                        <td>
+                                            {% if result.user_id|string in students %}
+                                                {{ students[result.user_id|string].username }}
+                                            {% else %}
+                                                Неизвестный
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% set test = tests|selectattr('_id', 'eq', result.test_id)|first %}
+                                            {% if test %}
+                                                {{ test.title }}
+                                            {% else %}
+                                                Неизвестный тест
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ result.score }} / {{ result.max_score }}</td>
+                                        <td>
+                                            {% set percent = (result.score / result.max_score * 100) if result.max_score > 0 else 0 %}
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar {% if percent >= 75 %}bg-success{% elif percent >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                     role="progressbar" 
+                                                     style="width: {{ percent }}%;" 
+                                                     aria-valuenow="{{ percent }}" 
+                                                     aria-valuemin="0" 
+                                                     aria-valuemax="100">
+                                                    {{ "%0.1f"|format(percent) }}%
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>{{ result.completed_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                        <td>
+                                            <a href="{{ url_for('view_result', result_id=result._id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i> Детали
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> Пока нет результатов прохождений ваших тестов.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для подтверждения удаления теста -->
+<div class="modal fade" id="deleteTestModal" tabindex="-1" aria-labelledby="deleteTestModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteTestModalLabel">Удаление теста</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите удалить тест <strong id="delete-test-title"></strong>?</p>
+                <p class="text-danger">Это действие нельзя будет отменить. Все результаты прохождения этого теста также будут удалены.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form id="delete-test-form" method="POST" action="">
+                    <button type="submit" class="btn btn-danger">Удалить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Инициализация модального окна удаления теста
+        const deleteTestButtons = document.querySelectorAll('.delete-test-btn');
+        deleteTestButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const testId = this.getAttribute('data-test-id');
+                const testTitle = this.getAttribute('data-test-title');
+                document.getElementById('delete-test-title').textContent = testTitle;
+                document.getElementById('delete-test-form').action = `/test/${testId}/delete`;
+            });
+        });
+        
+        // Фильтрация результатов
+        const testFilter = document.getElementById('test-filter');
+        const studentFilter = document.getElementById('student-filter');
+        const searchResults = document.getElementById('search-results');
+        
+        function filterResults() {
+            const testValue = testFilter.value;
+            const studentValue = studentFilter.value;
+            const searchValue = searchResults.value.toLowerCase();
+            
+            const resultRows = document.querySelectorAll('#results tbody tr');
+            
+            resultRows.forEach(row => {
+                const testCell = row.cells[1].textContent.trim();
+                const studentCell = row.cells[0].textContent.trim();
+                
+                let showRow = true;
+                
+                if (testValue && !row.innerHTML.includes(testValue)) {
+                    showRow = false;
+                }
+                
+                if (studentValue && !row.innerHTML.includes(studentValue)) {
+                    showRow = false;
+                }
+                
+                if (searchValue && !(testCell.toLowerCase().includes(searchValue) || studentCell.toLowerCase().includes(searchValue))) {
+                    showRow = false;
+                }
+                
+                row.style.display = showRow ? '' : 'none';
+            });
+        }
+        
+        if (testFilter) testFilter.addEventListener('change', filterResults);
+        if (studentFilter) studentFilter.addEventListener('change', filterResults);
+        if (searchResults) searchResults.addEventListener('input', filterResults);
+    });
+</script>
+{% endblock %}
+{% endblock %}

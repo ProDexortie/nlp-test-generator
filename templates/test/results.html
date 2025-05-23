@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+
+{% block title %}Результаты теста - Система автогенерации тестов{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Результаты теста</h2>
+        <div>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-1"></i> К личному кабинету
+            </a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Общая информация о тесте -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">{{ test.title }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Категория:</strong> {{ test.category or 'Общая' }}</p>
+                            <p><strong>Количество вопросов:</strong> {{ test.questions|length }}</p>
+                            <p><strong>Длительность теста:</strong> {{ test.duration }} мин.</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Дата прохождения:</strong> {{ result.completed_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                            <p><strong>Затраченное время:</strong> 
+                                {% set minutes = (result.time_spent // 60) %}
+                                {% set seconds = (result.time_spent % 60) %}
+                                {{ minutes }} мин. {{ seconds }} сек.
+                            </p>
+                            <p><strong>Тест пройден:</strong> 
+                                {% if result.completed %}
+                                    <span class="badge bg-success">Да</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Нет</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Информация о прохождении теста -->
+            <div class="result-summary mb-4">
+                <div class="row align-items-center">
+                    <div class="col-md-4 text-center">
+                        <div class="score-circle">
+                            <span class="score-text">{{ result.score }}/{{ result.max_score }}</span>
+                        </div>
+                        <h4 class="mt-3">Результат</h4>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="result-stats">
+                            <div class="result-stat-item">
+                                <h4>{{ "%0.1f"|format(result.score / result.max_score * 100 if result.max_score > 0 else 0) }}%</h4>
+                                <p>Процент правильных</p>
+                            </div>
+                            <div class="result-stat-item">
+                                <h4>
+                                    {% if (result.score / result.max_score * 100 if result.max_score > 0 else 0) >= 90 %}
+                                        5
+                                    {% elif (result.score / result.max_score * 100 if result.max_score > 0 else 0) >= 75 %}
+                                        4
+                                    {% elif (result.score / result.max_score * 100 if result.max_score > 0 else 0) >= 60 %}
+                                        3
+                                    {% else %}
+                                        2
+                                    {% endif %}
+                                </h4>
+                                <p>Оценка</p>
+                            </div>
+                            <div class="result-stat-item">
+                                <h4>{{ minutes }}:{{ '%02d'|format(seconds) }}</h4>
+                                <p>Время</p>
+                            </div>
+                        </div>
+                        
+                        {% set percentage = (result.score / result.max_score * 100) if result.max_score > 0 else 0 %}
+                        <div class="progress mt-3" style="height: 20px;">
+                            <div class="progress-bar {% if percentage >= 90 %}bg-success{% elif percentage >= 60 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ percentage }}%;" 
+                                 aria-valuenow="{{ percentage }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ "%0.1f"|format(percentage) }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Детальные результаты по вопросам -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Детальные результаты</h4>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" 
+                            data-bs-target="#detailedResults" aria-expanded="true" aria-controls="detailedResults">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div class="collapse show" id="detailedResults">
+                    <div class="card-body">
+                        {% for qr in question_results %}
+                            <div class="question-card {% if qr.is_correct %}border-success{% else %}border-danger{% endif %}">
+                                <div class="d-flex align-items-start">
+                                    <span class="question-number">{{ loop.index }}</span>
+                                    <div class="flex-grow-1">
+                                        <p class="question-text">{{ qr.question.text }}</p>
+                                        
+                                        {% if qr.question.question_type == 'multiple_choice' %}
+                                            <span class="badge bg-primary mb-3">Множественный выбор</span>
+                                            <ul class="options-list">
+                                                {% for option in qr.question.options %}
+                                                    <li class="option-item">
+                                                        <label class="{% if option == qr.question.correct_answer %}correct-answer{% endif %} 
+                                                                    {% if option == qr.user_answer and option != qr.question.correct_answer %}incorrect-answer{% endif %}">
+                                                            <input type="radio" disabled 
+                                                                   {% if option == qr.user_answer %}checked{% endif %}>
+                                                            {{ option }}
+                                                            {% if option == qr.question.correct_answer %}
+                                                                <i class="fas fa-check-circle text-success ms-1"></i>
+                                                            {% endif %}
+                                                            {% if option == qr.user_answer and option != qr.question.correct_answer %}
+                                                                <i class="fas fa-times-circle text-danger ms-1"></i>
+                                                            {% endif %}
+                                                        </label>
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                            
+                                        {% elif qr.question.question_type == 'true_false' %}
+                                            <span class="badge bg-success mb-3">Правда или ложь</span>
+                                            <ul class="options-list">
+                                                <li class="option-item">
+                                                    <label class="{% if 'правда' == qr.question.correct_answer %}correct-answer{% endif %}
+                                                                {% if 'правда' == qr.user_answer and 'правда' != qr.question.correct_answer %}incorrect-answer{% endif %}">
+                                                        <input type="radio" disabled 
+                                                               {% if qr.user_answer == 'правда' %}checked{% endif %}>
+                                                        Правда
+                                                        {% if 'правда' == qr.question.correct_answer %}
+                                                            <i class="fas fa-check-circle text-success ms-1"></i>
+                                                        {% endif %}
+                                                    </label>
+                                                </li>
+                                                <li class="option-item">
+                                                    <label class="{% if 'ложь' == qr.question.correct_answer %}correct-answer{% endif %}
+                                                                {% if 'ложь' == qr.user_answer and 'ложь' != qr.question.correct_answer %}incorrect-answer{% endif %}">
+                                                        <input type="radio" disabled 
+                                                               {% if qr.user_answer == 'ложь' %}checked{% endif %}>
+                                                        Ложь
+                                                        {% if 'ложь' == qr.question.correct_answer %}
+                                                            <i class="fas fa-check-circle text-success ms-1"></i>
+                                                        {% endif %}
+                                                    </label>
+                                                </li>
+                                            </ul>
+                                            
+                                        {% elif qr.question.question_type == 'fill_blank' %}
+                                            <span class="badge bg-info mb-3">Заполнение пропуска</span>
+                                            <div class="mb-3">
+                                                <label class="form-label">Ваш ответ:</label>
+                                                <input type="text" class="form-control" value="{{ qr.user_answer }}" readonly 
+                                                       style="{% if qr.is_correct %}border-color: var(--success-color);{% else %}border-color: var(--danger-color);{% endif %}">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Правильный ответ:</label>
+                                                <input type="text" class="form-control border-success" value="{{ qr.question.correct_answer }}" readonly>
+                                            </div>
+                                        {% endif %}
+                                        
+                                        <div class="alert {% if qr.is_correct %}alert-success{% else %}alert-danger{% endif %} mt-3">
+                                            {% if qr.is_correct %}
+                                                <i class="fas fa-check-circle me-2"></i> Правильный ответ!
+                                            {% else %}
+                                                <i class="fas fa-times-circle me-2"></i> Неправильный ответ.
+                                                <p class="mb-0 mt-1">
+                                                    <strong>Правильный ответ:</strong> {{ qr.question.correct_answer }}
+                                                </p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Боковая панель с действиями -->
+        <div class="col-lg-4">
+            <div class="card mb-4 position-sticky" style="top: 20px;">
+                <div class="card-header">
+                    <h4 class="mb-0">Информация о студенте</h4>
+                </div>
+                <div class="card-body">
+                    {% if user %}
+                        <p><strong>Имя:</strong> {{ user.username }}</p>
+                        <p><strong>Email:</strong> {{ user.email }}</p>
+                    {% else %}
+                        <p>Информация о пользователе недоступна</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Анализ ответов</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Статистика по типам вопросов -->
+                    <h5 class="mb-3">По типам вопросов</h5>
+                    
+                    {% set types = {'multiple_choice': {'total': 0, 'correct': 0}, 
+                                    'true_false': {'total': 0, 'correct': 0}, 
+                                    'fill_blank': {'total': 0, 'correct': 0}} %}
+                    
+                    {% for qr in question_results %}
+                        {% set _ = types[qr.question.question_type].update({'total': types[qr.question.question_type]['total'] + 1}) %}
+                        {% if qr.is_correct %}
+                            {% set _ = types[qr.question.question_type].update({'correct': types[qr.question.question_type]['correct'] + 1}) %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Множественный выбор</span>
+                            <span>{{ types['multiple_choice']['correct'] }}/{{ types['multiple_choice']['total'] }}</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-primary" role="progressbar" 
+                                 style="width: {{ (types['multiple_choice']['correct'] / types['multiple_choice']['total'] * 100)|round if types['multiple_choice']['total'] > 0 else 0 }}%;" 
+                                 aria-valuenow="{{ types['multiple_choice']['correct'] }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="{{ types['multiple_choice']['total'] }}"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Правда/ложь</span>
+                            <span>{{ types['true_false']['correct'] }}/{{ types['true_false']['total'] }}</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ (types['true_false']['correct'] / types['true_false']['total'] * 100)|round if types['true_false']['total'] > 0 else 0 }}%;" 
+                                 aria-valuenow="{{ types['true_false']['correct'] }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="{{ types['true_false']['total'] }}"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Заполнение пропусков</span>
+                            <span>{{ types['fill_blank']['correct'] }}/{{ types['fill_blank']['total'] }}</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-info" role="progressbar" 
+                                 style="width: {{ (types['fill_blank']['correct'] / types['fill_blank']['total'] * 100)|round if types['fill_blank']['total'] > 0 else 0 }}%;" 
+                                 aria-valuenow="{{ types['fill_blank']['correct'] }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="{{ types['fill_blank']['total'] }}"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('take_test', test_id=test._id) }}" class="btn btn-primary">
+                            <i class="fas fa-redo me-1"></i> Пройти тест заново
+                        </a>
+                        
+                        <button type="button" class="btn btn-outline-primary" id="print-results-btn">
+                            <i class="fas fa-print me-1"></i> Распечатать результаты
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Обработчик печати результатов
+        document.getElementById('print-results-btn').addEventListener('click', function() {
+            window.print();
+        });
+    });
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        .navbar, .footer, .btn, .card-header button {
+            display: none !important;
+        }
+        
+        body {
+            background-color: white;
+        }
+        
+        .card {
+            border: 1px solid #ddd;
+            box-shadow: none;
+        }
+        
+        #detailedResults {
+            display: block !important;
+        }
+    }
+</style>
+{% endblock %}
+{% endblock %}

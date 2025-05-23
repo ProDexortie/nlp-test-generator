@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+
+{% block title %}Создание теста - Система автогенерации тестов{% endblock %}
+
+{% block extra_css %}
+<style>
+    .file-upload-wrapper {
+        position: relative;
+        margin-bottom: 15px;
+    }
+    
+    .custom-file-upload {
+        border: 2px dashed var(--primary-color);
+        border-radius: 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        cursor: pointer;
+        background-color: var(--light-color);
+        text-align: center;
+        transition: all 0.3s;
+    }
+    
+    .custom-file-upload:hover {
+        background-color: var(--secondary-color);
+    }
+    
+    .file-upload-icon {
+        font-size: 2rem;
+        color: var(--accent-color);
+        margin-bottom: 10px;
+    }
+    
+    .file-upload-input {
+        position: absolute;
+        left: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        opacity: 0;
+        cursor: pointer;
+    }
+    
+    .preview-question {
+        background-color: white;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+    
+    .preview-question-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .question-type-badge {
+        font-size: 0.85rem;
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin-left: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Создание нового теста</h2>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i> Назад
+        </a>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">Форма создания теста</h4>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('create_test') }}" enctype="multipart/form-data" class="needs-validation" novalidate>
+                <div class="row">
+                    <!-- Левая колонка с основными настройками -->
+                    <div class="col-md-6">
+                        <h5 class="mb-3">Основная информация</h5>
+                        
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Название теста</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                            <div class="invalid-feedback">
+                                Пожалуйста, введите название теста.
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Описание</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="category" class="form-label">Категория</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="">Общая</option>
+                                <option value="Математика">Математика</option>
+                                <option value="Информатика">Информатика</option>
+                                <option value="Физика">Физика</option>
+                                <option value="Химия">Химия</option>
+                                <option value="Биология">Биология</option>
+                                <option value="История">История</option>
+                                <option value="Литература">Литература</option>
+                                <option value="Иностранные языки">Иностранные языки</option>
+                                <option value="Другое">Другое</option>
+                            </select>
+                        </div>
+                        
+                        <h5 class="mt-4 mb-3">Настройки теста</h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="num_questions" class="form-label">Количество вопросов</label>
+                                <input type="number" class="form-control" id="num_questions" name="num_questions" min="5" max="50" value="10" required>
+                                <div class="invalid-feedback">
+                                    Укажите количество от 5 до 50.
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="duration" class="form-label">Длительность (мин.)</label>
+                                <input type="number" class="form-control" id="duration" name="duration" min="5" max="180" value="30" required>
+                                <div class="invalid-feedback">
+                                    Укажите длительность от 5 до 180 минут.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="is_public" name="is_public">
+                            <label class="form-check-label" for="is_public">Публичный тест (доступен всем студентам)</label>
+                        </div>
+                    </div>
+                    
+                    <!-- Правая колонка с загрузкой текста -->
+                    <div class="col-md-6">
+                        <h5 class="mb-3">Текст для анализа</h5>
+                        
+                        <ul class="nav nav-tabs mb-3" id="content-tabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="text-tab" data-bs-toggle="tab" data-bs-target="#text-input" type="button" role="tab" aria-controls="text-input" aria-selected="true">Ввод текста</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="file-tab" data-bs-toggle="tab" data-bs-target="#file-upload" type="button" role="tab" aria-controls="file-upload" aria-selected="false">Загрузка файла</button>
+                            </li>
+                        </ul>
+                        
+                        <div class="tab-content" id="content-tabs-content">
+                            <div class="tab-pane fade show active" id="text-input" role="tabpanel" aria-labelledby="text-tab">
+                                <div class="mb-3">
+                                    <textarea class="form-control" id="text_content" name="text_content" rows="10" placeholder="Введите текст для анализа и генерации вопросов..."></textarea>
+                                    <div class="form-text">Введите не менее 300 символов для качественной генерации вопросов.</div>
+                                </div>
+                            </div>
+                            
+                            <div class="tab-pane fade" id="file-upload" role="tabpanel" aria-labelledby="file-tab">
+                                <div class="file-upload-wrapper">
+                                    <label for="text_file" class="custom-file-upload">
+                                        <i class="fas fa-file-upload file-upload-icon"></i>
+                                        <span>Перетащите файл сюда или нажмите для выбора</span>
+                                        <small class="text-muted">Поддерживаемые форматы: TXT, PDF, DOCX (до 16 МБ)</small>
+                                    </label>
+                                    <input type="file" id="text_file" name="text_file" class="file-upload-input" accept=".txt,.pdf,.docx">
+                                </div>
+                                <div id="file-preview" class="alert alert-info d-none">
+                                    <i class="fas fa-file-alt me-2"></i>
+                                    <span id="file-name"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-3">
+                            <button type="button" id="generate-preview-btn" class="btn btn-outline-primary">
+                                <i class="fas fa-sync-alt me-1"></i> Предварительный просмотр вопросов
+                            </button>
+                        </div>
+                        
+                        <div id="preview-loading" class="text-center my-3 d-none">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
+                            </div>
+                            <p class="mb-0 mt-2">Генерация вопросов...</p>
+                        </div>
+                        
+                        <div id="preview-container" class="mt-3">
+                            <!-- Результаты предпросмотра будут загружены через JavaScript -->
+                        </div>
+                    </div>
+                </div>
+                
+                <hr class="my-4">
+                
+                <div class="d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" onclick="window.history.back();">Отмена</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Сохранить тест
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Обработка загрузки файла
+        const fileInput = document.getElementById('text_file');
+        const filePreview = document.getElementById('file-preview');
+        const fileName = document.getElementById('file-name');
+        
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    filePreview.classList.remove('d-none');
+                    fileName.textContent = this.files[0].name;
+                } else {
+                    filePreview.classList.add('d-none');
+                    fileName.textContent = '';
+                }
+            });
+        }
+        
+        // Проверка формы перед отправкой
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function(event) {
+            const textContent = document.getElementById('text_content').value;
+            const textFile = document.getElementById('text_file').files[0];
+            
+            if (!textContent && !textFile) {
+                event.preventDefault();
+                alert('Пожалуйста, введите текст или загрузите файл для анализа.');
+                return false;
+            }
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}

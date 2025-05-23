@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактирование теста - Система автогенерации тестов{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Редактирование теста</h2>
+        <a href="{{ url_for('view_test', test_id=test._id) }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i> Назад к просмотру
+        </a>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">{{ test.title }}</h4>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('edit_test', test_id=test._id) }}" class="needs-validation" novalidate>
+                <div class="row mb-4">
+                    <!-- Базовая информация о тесте -->
+                    <div class="col-md-6">
+                        <h5 class="mb-3">Основная информация</h5>
+                        
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Название теста</label>
+                            <input type="text" class="form-control" id="title" name="title" value="{{ test.title }}" required>
+                            <div class="invalid-feedback">
+                                Пожалуйста, введите название теста.
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Описание</label>
+                            <textarea class="form-control" id="description" name="description" rows="3">{{ test.description }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="category" class="form-label">Категория</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="" {% if not test.category %}selected{% endif %}>Общая</option>
+                                <option value="Математика" {% if test.category == 'Математика' %}selected{% endif %}>Математика</option>
+                                <option value="Информатика" {% if test.category == 'Информатика' %}selected{% endif %}>Информатика</option>
+                                <option value="Физика" {% if test.category == 'Физика' %}selected{% endif %}>Физика</option>
+                                <option value="Химия" {% if test.category == 'Химия' %}selected{% endif %}>Химия</option>
+                                <option value="Биология" {% if test.category == 'Биология' %}selected{% endif %}>Биология</option>
+                                <option value="История" {% if test.category == 'История' %}selected{% endif %}>История</option>
+                                <option value="Литература" {% if test.category == 'Литература' %}selected{% endif %}>Литература</option>
+                                <option value="Иностранные языки" {% if test.category == 'Иностранные языки' %}selected{% endif %}>Иностранные языки</option>
+                                <option value="Другое" {% if test.category == 'Другое' %}selected{% endif %}>Другое</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h5 class="mb-3">Настройки теста</h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="duration" class="form-label">Длительность (мин.)</label>
+                                <input type="number" class="form-control" id="duration" name="duration" min="5" max="180" value="{{ test.duration }}" required>
+                                <div class="invalid-feedback">
+                                    Укажите длительность от 5 до 180 минут.
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="questions-count" class="form-label">Количество вопросов</label>
+                                <input type="text" class="form-control" id="questions-count" value="{{ test.questions|length }}" readonly>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="is_public" name="is_public" {% if test.is_public %}checked{% endif %}>
+                            <label class="form-check-label" for="is_public">Публичный тест (доступен всем студентам)</label>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Создан</label>
+                            <input type="text" class="form-control" value="{{ test.created_at.strftime('%d.%m.%Y %H:%M') }}" readonly>
+                        </div>
+                    </div>
+                </div>
+                
+                <h5 class="mb-3">Вопросы теста</h5>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> Вы можете редактировать имеющиеся вопросы. 
+                    Для создания новых вопросов необходимо создать новый тест.
+                </div>
+                
+                <div class="accordion mb-4" id="questionsAccordion">
+                    {% for question in test.questions %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="heading{{ loop.index }}">
+                                <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" 
+                                        data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" 
+                                        aria-expanded="{% if loop.first %}true{% else %}false{% endif %}" 
+                                        aria-controls="collapse{{ loop.index }}">
+                                    <div class="d-flex align-items-center w-100">
+                                        <span class="me-2">Вопрос {{ loop.index }}</span>
+                                        {% if question.question_type == 'multiple_choice' %}
+                                            <span class="badge bg-primary ms-auto">Множественный выбор</span>
+                                        {% elif question.question_type == 'true_false' %}
+                                            <span class="badge bg-success ms-auto">Правда/ложь</span>
+                                        {% elif question.question_type == 'fill_blank' %}
+                                            <span class="badge bg-info ms-auto">Заполнение пропуска</span>
+                                        {% endif %}
+                                    </div>
+                                </button>
+                            </h2>
+                            <div id="collapse{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" 
+                                 aria-labelledby="heading{{ loop.index }}" data-bs-parent="#questionsAccordion">
+                                <div class="accordion-body">
+                                    <div class="mb-3">
+                                        <label for="question_{{ loop.index0 }}" class="form-label">Текст вопроса</label>
+                                        <textarea class="form-control" id="question_{{ loop.index0 }}" name="question_{{ loop.index0 }}" rows="3">{{ question.text }}</textarea>
+                                    </div>
+                                    
+                                    {% set question_index = loop.index0 %}
+                                    
+                                    {% if question.question_type == 'multiple_choice' %}
+                                        <div class="mb-3">
+                                            <label class="form-label">Варианты ответов</label>
+                                            {% for option in question.options %}
+                                                <div class="input-group mb-2">
+                                                    <div class="input-group-text">
+                                                        <input class="form-check-input mt-0" type="radio" 
+                                                               name="correct_answer_{{ question_index }}" 
+                                                               value="{{ option }}" 
+                                                               {% if option == question.correct_answer %}checked{% endif %}>
+                                                    </div>
+                                                    <input type="text" class="form-control" 
+                                                           name="option_{{ question_index }}_{{ loop.index0 }}" 
+                                                           value="{{ option }}">
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% elif question.question_type == 'true_false' %}
+                                        <div class="mb-3">
+                                            <label class="form-label">Правильный ответ</label>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" 
+                                                       name="correct_answer_{{ question_index }}" 
+                                                       id="true_{{ question_index }}" value="правда" 
+                                                       {% if question.correct_answer == 'правда' %}checked{% endif %}>
+                                                <label class="form-check-label" for="true_{{ question_index }}">
+                                                    Правда
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" 
+                                                       name="correct_answer_{{ question_index }}" 
+                                                       id="false_{{ question_index }}" value="ложь" 
+                                                       {% if question.correct_answer == 'ложь' %}checked{% endif %}>
+                                                <label class="form-check-label" for="false_{{ question_index }}">
+                                                    Ложь
+                                                </label>
+                                            </div>
+                                        </div>
+                                    {% elif question.question_type == 'fill_blank' %}
+                                        <div class="mb-3">
+                                            <label for="correct_answer_{{ question_index }}" class="form-label">Правильный ответ</label>
+                                            <input type="text" class="form-control" 
+                                                   id="correct_answer_{{ question_index }}" 
+                                                   name="correct_answer_{{ question_index }}" 
+                                                   value="{{ question.correct_answer }}">
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" onclick="window.history.back();">Отмена</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Сохранить изменения
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
