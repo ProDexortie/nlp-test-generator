@@ -1,8 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, make_response
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from pymongo import MongoClient
 from bson.objectid import ObjectId
+import csv
+import io
 import os
 import datetime
 import json
@@ -741,6 +743,116 @@ def api_admin_delete_user(user_id):
         db.results.delete_many({"user_id": ObjectId(user_id)})
         
         return jsonify({"message": "Пользователь успешно удален"})
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/teacher/export-results', methods=['GET'])
+@login_required
+def api_teacher_export_results():
+    """API для экспорта результатов тестов преподавателя в CSV"""
+    if not current_user.is_teacher() and not current_user.is_admin():
+        return jsonify({"error": "Доступ запрещен"}), 403
+    
+    try:
+        # Получаем тесты, созданные данным преподавателем
+        tests = list(db.tests.find({"creator_id": ObjectId(current_user.get_id())}).sort("created_at", -1))
+        
+        if not tests:
+            return jsonify({"error": "У вас нет созданных тестов"}), 404
+        
+        # Получаем результаты тестов студентов
+        test_ids = [test['_id'] for test in tests]
+        results = list(db.results.find({"test_id": {"$in": test_ids}, "completed": True}).sort("completed_at", -1))
+        
+        if not results:
+            return jsonify({"error": "Нет результатов для экспорта"}), 404
+        
+        # Получаем информацию о студентах
+        student_ids = [result['user_id'] for result in results]
+        students = list(db.users.find({"_id": {"$in": student_ids}}))
+        students_dict = {str(student['_id']): student for student in students}
+        
+        # Создаем словарь тестов для быстрого доступа
+        tests_dict = {str(test['_id']): test for test in tests}
+        
+        # Создаем CSV данные
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=';', quoting=csv.QUOTE_ALL)
+        
+        # Заголовки CSV
+        headers = [
+            'Дата прохождения',
+            'Студент',
+            'Email студента',
+            'Название теста',
+            'Категория теста',
+            'Количество вопросов',
+            'Правильных ответов',
+            'Процент правильных',
+            'Оценка (1-5)',
+            'Время прохождения (мин:сек)',
+            'Длительность теста (мин)'
+        ]
+        writer.writerow(headers)
+        
+        # Данные результатов
+        for result in results:
+            student = students_dict.get(str(result['user_id']), {})
+            test = tests_dict.get(str(result['test_id']), {})
+            
+            # Рассчитываем процент и оценку
+            percentage = (result['score'] / result['max_score'] * 100) if result['max_score'] > 0 else 0
+            
+            # Оценка по 5-балльной шкале
+            if percentage >= 90:
+                grade = 5
+            elif percentage >= 75:
+                grade = 4
+            elif percentage >= 60:
+                grade = 3
+            else:
+                grade = 2
+            
+            # Время прохождения
+            time_spent = result.get('time_spent', 0)
+            minutes = time_spent // 60
+            seconds = time_spent % 60
+            time_str = f"{minutes}:{seconds:02d}"
+            
+            # Дата прохождения
+            completed_at = result.get('completed_at', datetime.datetime.utcnow())
+            date_str = completed_at.strftime('%d.%m.%Y %H:%M') if completed_at else 'Н/Д'
+            
+            row = [
+                date_str,
+                student.get('username', 'Неизвестный'),
+                student.get('email', 'Н/Д'),
+                test.get('title', 'Неизвестный тест'),
+                test.get('category', 'Общая'),
+                result['max_score'],
+                result['score'],
+                f"{percentage:.1f}%",
+                grade,
+                time_str,
+                test.get('duration', 'Н/Д')
+            ]
+            writer.writerow(row)
+        
+        # Создаем ответ с файлом
+        output.seek(0)
+        csv_data = output.getvalue()
+        output.close()
+        
+        response = make_response(csv_data)
+        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+        response.headers['Content-Disposition'] = 'attachment; filename=test_results.csv'
+        
+        # Добавляем BOM для корректного отображения кириллицы в Excel
+        csv_data_with_bom = '\ufeff' + csv_data
+        response.data = csv_data_with_bom.encode('utf-8')
+        
+        return response
     
     except Exception as e:
         return jsonify({"error": str(e)}), 500
